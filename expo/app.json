@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "app.rork.63nw9li4wju96duwwvf0d"
+      "bundleIdentifier": "com.kreosus.taskping"
     },
     "android": {
       "adaptiveIcon": {
