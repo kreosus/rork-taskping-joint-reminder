@@ -1,7 +1,7 @@
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import { BellRing, Check, HeartHandshake, Infinity, RotateCcw, ShieldCheck } from "lucide-react-native";
+import { BellRing, Check, Crown, HeartHandshake, Infinity, Pill, RotateCcw, ShieldCheck, Zap } from "lucide-react-native";
 import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -14,8 +14,8 @@ const LOOP_ART = "https://r2-pub.rork.com/generated-images/ed5bbbf5-394d-4366-b0
 const CROWN_ART = "https://r2-pub.rork.com/generated-images/9d36523a-daf8-41bd-b276-f4888954ecae.png";
 
 const fallbackPlans = [
-  { id: "monthly", title: "Monthly", subtitle: "Flexible premium nudging, billed monthly.", price: "$5" },
-  { id: "annual", title: "Yearly", subtitle: "Best value for couples who run on reminders.", price: "$30", badge: "Save 50%" },
+  { id: "monthly", title: "Monthly", subtitle: "Unlimited partner nudges, billed monthly.", price: "$4.99" },
+  { id: "annual", title: "Yearly", subtitle: "Best value — unlimited nudges all year.", price: "$29.99", badge: "Save 50%" },
 ] as const;
 
 export default function PremiumScreen() {
@@ -85,15 +85,41 @@ export default function PremiumScreen() {
           </View>
           <Text style={styles.eyebrow}>Nudge Premium</Text>
           <Text style={styles.title}>Make “I forgot” impossible.</Text>
-          <Text style={styles.subtitle}>Unlimited couple reminders, stronger repeat nudges, and premium task accountability for $5/month or $30/year.</Text>
+          <Text style={styles.subtitle}>Unlimited partner nudges, urgent 15-min reminders, unlimited medications, and stronger repeat loops — $4.99/month.</Text>
         </View>
 
         <View style={styles.benefitsCard}>
           <Image source={{ uri: LOOP_ART }} style={styles.loopArt} resizeMode="contain" pointerEvents="none" />
-          <Benefit icon={<Infinity size={18} color={Colors.coral} strokeWidth={2.5} />} title="Unlimited active nudges" />
-          <Benefit icon={<HeartHandshake size={18} color={Colors.coral} strokeWidth={2.5} />} title="Partner-powered task pushes" />
-          <Benefit icon={<BellRing size={18} color={Colors.coral} strokeWidth={2.5} />} title="More persistent reminder loops" />
-          <Benefit icon={<ShieldCheck size={18} color={Colors.coral} strokeWidth={2.5} />} title="Premium badge and priority support" />
+          <BenefitRow
+            free="Up to 5 nudges"
+            premium="Unlimited active nudges"
+            icon={<Infinity size={18} color={Colors.coral} strokeWidth={2.5} />}
+          />
+          <BenefitRow
+            free="3 partner tasks"
+            premium="Unlimited partner nudges"
+            icon={<HeartHandshake size={18} color={Colors.coral} strokeWidth={2.5} />}
+          />
+          <BenefitRow
+            free="Every 30 min+"
+            premium="Urgent 15-min reminders"
+            icon={<Zap size={18} color={Colors.coral} strokeWidth={2.5} />}
+          />
+          <BenefitRow
+            free="5 repeats"
+            premium="10 persistent reminder loops"
+            icon={<BellRing size={18} color={Colors.coral} strokeWidth={2.5} />}
+          />
+          <BenefitRow
+            free="2 medications"
+            premium="Unlimited medication tracking"
+            icon={<Pill size={18} color={Colors.coral} strokeWidth={2.5} />}
+          />
+          <BenefitRow
+            free={null}
+            premium="Premium badge & priority support"
+            icon={<ShieldCheck size={18} color={Colors.coral} strokeWidth={2.5} />}
+          />
         </View>
 
         <View style={styles.plans}>
@@ -143,11 +169,15 @@ export default function PremiumScreen() {
   );
 }
 
-function Benefit({ icon, title }: { icon: React.ReactNode; title: string }) {
+function BenefitRow({ icon, free, premium }: { icon: React.ReactNode; free: string | null; premium: string }) {
   return (
-    <View style={styles.benefit}>
+    <View style={styles.benefitRow}>
       <View style={styles.benefitIcon}>{icon}</View>
-      <Text style={styles.benefitText}>{title}</Text>
+      <View style={styles.benefitTexts}>
+        <Text style={styles.benefitPremium}>{premium}</Text>
+        {free ? <Text style={styles.benefitFree}>Free: {free}</Text> : null}
+      </View>
+      <Crown size={13} color={Colors.amber} fill={Colors.amber} strokeWidth={1.4} />
     </View>
   );
 }
@@ -164,10 +194,12 @@ const styles = StyleSheet.create({
   eyebrow: { color: Colors.amber, fontWeight: "900", fontSize: 12, letterSpacing: 1.4, textTransform: "uppercase" },
   title: { color: "#fff", fontSize: 36, lineHeight: 39, fontWeight: "900", letterSpacing: -1.2 },
   subtitle: { color: "rgba(255,255,255,0.78)", fontSize: 15, lineHeight: 22, fontWeight: "600" },
-  benefitsCard: { backgroundColor: "rgba(255,255,255,0.94)", borderRadius: 26, padding: 14, gap: 6, shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 20, shadowOffset: { width: 0, height: 12 }, elevation: 5 },
-  benefit: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 9 },
+  benefitsCard: { backgroundColor: "rgba(255,255,255,0.94)", borderRadius: 26, padding: 14, gap: 2, shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 20, shadowOffset: { width: 0, height: 12 }, elevation: 5 },
+  benefitRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 },
   benefitIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: "#FFE4DE", alignItems: "center", justifyContent: "center" },
-  benefitText: { flex: 1, color: Colors.ink, fontSize: 15, fontWeight: "800" },
+  benefitTexts: { flex: 1, gap: 2 },
+  benefitPremium: { color: Colors.ink, fontSize: 14, fontWeight: "800" },
+  benefitFree: { color: Colors.sub, fontSize: 12, fontWeight: "600" },
   plans: { gap: 10 },
   planCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: Colors.surface, borderRadius: 22, padding: 16, borderWidth: 2, borderColor: "transparent" },
   planSelected: { borderColor: Colors.coral, backgroundColor: "#FFF8F4" },

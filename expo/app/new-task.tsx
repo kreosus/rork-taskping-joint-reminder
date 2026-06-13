@@ -1,9 +1,10 @@
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
-import { BellRing, Flame, Send, User } from "lucide-react-native";
+import { BellRing, Crown, Flame, Lock, Send, User } from "lucide-react-native";
 import React, { useCallback, useMemo, useState } from "react";
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -16,6 +17,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/colors";
+import { FREE_LIMITS } from "@/providers/purchases-provider";
+import { usePurchases } from "@/providers/purchases-provider";
 import { useTasks } from "@/providers/tasks-provider";
 import {
   INTERVAL_OPTIONS,
@@ -27,7 +30,8 @@ import {
 export default function NewTaskScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ to?: string }>();
-  const { addTask, pair, persona } = useTasks();
+  const { addTask, pair, persona, activeInbox, sentTasks } = useTasks();
+  const { isPremium } = usePurchases();
 
   const defaultTo: "me" | "partner" =
     params?.to === "partner" ? "partner" : "me";
@@ -38,6 +42,20 @@ export default function NewTaskScreen() {
   const [assignedTo, setAssignedTo] = useState<"me" | "partner">(defaultTo);
   const [submitting, setSubmitting] = useState<boolean>(false);
 
+  const activeSelfCount = useMemo(
+    () => activeInbox.filter((t) => t.sentBy === persona && t.assignedTo === persona).length,
+    [activeInbox, persona],
+  );
+  const activePartnerCount = useMemo(
+    () => sentTasks.filter((t) => !t.completedAt).length,
+    [sentTasks],
+  );
+
+  const visibleIntervals = useMemo(
+    () => isPremium ? INTERVAL_OPTIONS : INTERVAL_OPTIONS.filter((o) => o.value !== 15),
+    [isPremium],
+  );
+
   const meLabel = persona === "me" ? pair.myName : pair.partnerName;
   const themLabel = persona === "me" ? pair.partnerName : pair.myName;
 
@@ -45,6 +63,32 @@ export default function NewTaskScreen() {
 
   const handleSave = useCallback(async () => {
     if (!canSave || submitting) return;
+
+    if (!isPremium) {
+      if (assignedTo === "me" && activeSelfCount >= FREE_LIMITS.selfTasks) {
+        Alert.alert(
+          "Free limit reached",
+          `You can have up to ${FREE_LIMITS.selfTasks} active nudges on the free plan. Upgrade to Premium for unlimited.`,
+          [
+            { text: "Not now", style: "cancel" },
+            { text: "Upgrade", onPress: () => router.push("/premium") },
+          ],
+        );
+        return;
+      }
+      if (assignedTo === "partner" && activePartnerCount >= FREE_LIMITS.partnerTasks) {
+        Alert.alert(
+          "Free limit reached",
+          `You can send up to ${FREE_LIMITS.partnerTasks} active partner nudges on the free plan. Upgrade to Premium for unlimited.`,
+          [
+            { text: "Not now", style: "cancel" },
+            { text: "Upgrade", onPress: () => router.push("/premium") },
+          ],
+        );
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       if (Platform.OS !== "web") {
@@ -58,13 +102,14 @@ export default function NewTaskScreen() {
         intervalMinutes: interval,
         priority,
         assignedTo,
+        notificationCount: isPremium ? 10 : FREE_LIMITS.notificationRepeats,
       });
       router.back();
     } catch (e) {
       console.log("[new-task] save error", e);
       setSubmitting(false);
     }
-  }, [addTask, title, note, interval, priority, assignedTo, canSave, submitting]);
+  }, [addTask, title, note, interval, priority, assignedTo, canSave, submitting, isPremium, activeSelfCount, activePartnerCount]);
 
   return (
     <KeyboardAvoidingView
@@ -132,7 +177,7 @@ export default function NewTaskScreen() {
             <BellRing size={13} color={Colors.sub} /> {"  "}Nag me
           </Text>
           <View style={styles.pillRow}>
-            {INTERVAL_OPTIONS.map((opt) => (
+            {visibleIntervals.map((opt) => (
               <OptionPill
                 key={opt.value}
                 active={interval === opt.value}
@@ -141,6 +186,17 @@ export default function NewTaskScreen() {
                 testID={`interval-${opt.value}`}
               />
             ))}
+            {!isPremium && (
+              <Pressable
+                onPress={() => router.push("/premium")}
+                style={styles.lockedPill}
+                testID="interval-15-locked"
+              >
+                <Lock size={11} color={Colors.amber} strokeWidth={2.6} />
+                <Text style={styles.lockedPillText}>Every 15 min</Text>
+                <Crown size={11} color={Colors.amber} fill={Colors.amber} strokeWidth={1.4} />
+              </Pressable>
+            )}
           </View>
         </View>
 
@@ -301,6 +357,22 @@ const styles = StyleSheet.create({
   },
   pillTextActive: {
     color: "#fff",
+  },
+  lockedPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 100,
+    backgroundColor: "rgba(255,176,32,0.10)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.amber,
+  },
+  lockedPillText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: Colors.amber,
   },
   previewCard: {
     backgroundColor: "#FFE4DE",

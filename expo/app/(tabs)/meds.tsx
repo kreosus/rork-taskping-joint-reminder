@@ -1,6 +1,6 @@
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { CalendarDays, Check, Clock, Pill, Plus, Trash2 } from "lucide-react-native";
+import { CalendarDays, Check, Clock, Crown, Pill, Plus, Trash2 } from "lucide-react-native";
 import React, { useCallback, useMemo, useState } from "react";
 import {
   Alert,
@@ -14,10 +14,12 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Header from "@/components/Header";
 import { Colors } from "@/constants/colors";
+import { FREE_LIMITS, usePurchases } from "@/providers/purchases-provider";
 import { useTasks } from "@/providers/tasks-provider";
 import { Medication, MedicationColor, MEDICATION_COLOR_OPTIONS } from "@/types/task";
 
@@ -55,6 +57,7 @@ function buildWeek(): Date[] {
 export default function MedsScreen() {
   const insets = useSafeAreaInsets();
   const { medications, addMedication, markDoseTaken, deleteMedication } = useTasks();
+  const { isPremium } = usePurchases();
   const [selectedKey, setSelectedKey] = useState<string>(dateKey(new Date()));
   const [modalVisible, setModalVisible] = useState<boolean>(false);
   const [name, setName] = useState<string>("");
@@ -100,6 +103,18 @@ export default function MedsScreen() {
   const saveMedication = useCallback(async () => {
     if (!name.trim() || !dosage.trim() || times.length === 0) {
       Alert.alert("Missing details", "Add a pill name, dosage, and at least one reminder time.");
+      return;
+    }
+    if (!isPremium && medications.length >= FREE_LIMITS.medications) {
+      setModalVisible(false);
+      Alert.alert(
+        "Free limit reached",
+        `You can track up to ${FREE_LIMITS.medications} medications on the free plan. Upgrade to Premium for unlimited.`,
+        [
+          { text: "Not now", style: "cancel" },
+          { text: "Upgrade", onPress: () => router.push("/premium") },
+        ],
+      );
       return;
     }
     await addMedication({ name, dosage, instructions, times, color });
@@ -166,7 +181,23 @@ export default function MedsScreen() {
         })}
       </ScrollView>
 
-      <Pressable style={[styles.addButton, { bottom: 28 + insets.bottom }]} onPress={() => setModalVisible(true)}><Plus color="#FFFFFF" size={24} /><Text style={styles.addButtonText}>Add med</Text></Pressable>
+      <Pressable
+        style={[styles.addButton, { bottom: 28 + insets.bottom }, !isPremium && medications.length >= FREE_LIMITS.medications && styles.addButtonLocked]}
+        onPress={() => {
+          if (!isPremium && medications.length >= FREE_LIMITS.medications) {
+            router.push("/premium");
+          } else {
+            setModalVisible(true);
+          }
+        }}
+      >
+        {!isPremium && medications.length >= FREE_LIMITS.medications
+          ? <Crown color="#FFFFFF" size={20} fill="#FFFFFF" strokeWidth={1.4} />
+          : <Plus color="#FFFFFF" size={24} />}
+        <Text style={styles.addButtonText}>
+          {!isPremium && medications.length >= FREE_LIMITS.medications ? "Upgrade for more" : "Add med"}
+        </Text>
+      </Pressable>
 
       <Modal animationType="slide" visible={modalVisible} presentationStyle="pageSheet" onRequestClose={() => setModalVisible(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.modal}>
@@ -223,6 +254,7 @@ const styles = StyleSheet.create({
   takenText: { color: Colors.ink, fontWeight: "900" },
   takenTextDone: { color: "#FFFFFF" },
   addButton: { position: "absolute", right: 18, flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: Colors.coral, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 16, shadowColor: Colors.coral, shadowOpacity: 0.35, shadowRadius: 16, shadowOffset: { width: 0, height: 8 } },
+  addButtonLocked: { backgroundColor: Colors.amber },
   addButtonText: { color: "#FFFFFF", fontWeight: "900", fontSize: 16 },
   modal: { flex: 1, backgroundColor: Colors.bg },
   modalTitle: { color: Colors.ink, fontSize: 28, fontWeight: "900", marginBottom: 18 },

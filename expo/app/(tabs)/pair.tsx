@@ -322,9 +322,9 @@ export default function PairScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.premiumTitle}>{isPremium ? "Premium active" : "Upgrade your nudges"}</Text>
-              <Text style={styles.premiumBody}>Unlimited partner task pushes plus stronger reminder loops.</Text>
+              <Text style={styles.premiumBody}>Unlimited partner nudges, urgent reminders & more meds.</Text>
             </View>
-            <Text style={styles.premiumPrice}>{isPremium ? "On" : "$5/mo"}</Text>
+            <Text style={styles.premiumPrice}>{isPremium ? "On" : "$4.99/mo"}</Text>
           </LinearGradient>
         </Pressable>
       </View>

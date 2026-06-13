@@ -127,11 +127,12 @@ export const [TasksProvider, useTasks] = createContextHook(() => {
     try { await AsyncStorage.setItem(PERSONA_KEY, next); } catch (e) { console.log("[persona] save error", e); }
   }, [persona]);
 
-  const addTask = useCallback(async (input: { title: string; note?: string; intervalMinutes: ReminderInterval; priority: TaskPriority; assignedTo: "me" | "partner"; }) => {
+  const addTask = useCallback(async (input: { title: string; note?: string; intervalMinutes: ReminderInterval; priority: TaskPriority; assignedTo: "me" | "partner"; notificationCount?: number; }) => {
     const sentBy: "me" | "partner" = persona;
     const assignedTo = input.assignedTo;
     const id = `t_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const notificationIds = assignedTo === persona ? await scheduleRepeatingReminder({ title: `Don't forget: ${input.title}`, body: sentBy === assignedTo ? "Gentle reminder from yourself." : `${pair.partnerName} is counting on you.`, intervalMinutes: input.intervalMinutes, count: 10, startInSeconds: 5 }) : [];
+    const count = input.notificationCount ?? 10;
+    const notificationIds = assignedTo === persona ? await scheduleRepeatingReminder({ title: `Don't forget: ${input.title}`, body: sentBy === assignedTo ? "Gentle reminder from yourself." : `${pair.partnerName} is counting on you.`, intervalMinutes: input.intervalMinutes, count, startInSeconds: 5 }) : [];
     const task: Task = { id, title: input.title.trim(), note: input.note?.trim() || undefined, createdAt: Date.now(), intervalMinutes: input.intervalMinutes, priority: input.priority, assignedTo, sentBy, nudges: 0, notificationIds };
     persist((prev) => [task, ...prev]);
     return task;

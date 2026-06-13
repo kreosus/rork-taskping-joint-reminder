@@ -6,6 +6,13 @@ import Purchases, { LOG_LEVEL, type CustomerInfo, type PurchasesOffering, type P
 const ENTITLEMENT_ID = "premium";
 const OFFERING_ID = "default";
 
+export const FREE_LIMITS = {
+  selfTasks: 5,
+  partnerTasks: 3,
+  medications: 2,
+  notificationRepeats: 5,
+} as const;
+
 function getRevenueCatKey(): string | undefined {
   if (__DEV__ || Platform.OS === "web") {
     return process.env.EXPO_PUBLIC_REVENUECAT_TEST_API_KEY;
@@ -45,8 +52,8 @@ function getPackageTitle(pkg: PurchasesPackage): string {
 
 function getPackageSubtitle(pkg: PurchasesPackage): string {
   const identifier = pkg.identifier.toLowerCase();
-  if (identifier.includes("annual") || identifier.includes("year")) return "Best value for couples who run on reminders.";
-  if (identifier.includes("month")) return "Flexible premium nudging, billed monthly.";
+  if (identifier.includes("annual") || identifier.includes("year")) return "Best value — unlimited nudges all year.";
+  if (identifier.includes("month")) return "Unlimited partner nudges, billed monthly.";
   return pkg.product.description || "Unlock premium nudges.";
 }
 
