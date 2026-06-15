@@ -3,7 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-export type AuthProviderType = "google" | "facebook" | "phone";
+export type AuthProviderType = "google" | "facebook" | "phone" | "apple";
 
 export interface AppUser {
   id: string;
@@ -53,22 +53,28 @@ const DEFAULT_USERS: AppUser[] = [
 ];
 
 function isAuthProvider(value: unknown): value is AuthProviderType {
-  return value === "google" || value === "facebook" || value === "phone";
+  return value === "google" || value === "facebook" || value === "phone" || value === "apple";
 }
 
 function normalizeIdentifier(provider: AuthProviderType, identifier: string): string {
   const trimmed = identifier.trim();
-  return provider === "phone" ? trimmed.replace(/[^+\d]/g, "") : trimmed.toLowerCase();
+  if (provider === "phone") return trimmed.replace(/[^+\d]/g, "");
+  // Apple identifiers are opaque, case-sensitive user IDs (or a private-relay email), so don't lowercase.
+  if (provider === "apple") return trimmed;
+  return trimmed.toLowerCase();
 }
 
 function isValidIdentifier(provider: AuthProviderType, normalized: string): boolean {
   if (provider === "phone") return /^\+?\d{10,15}$/.test(normalized);
+  // Apple may return an opaque user ID rather than an email, so accept any non-empty value.
+  if (provider === "apple") return normalized.length > 0;
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized);
 }
 
 function providerLabel(provider: AuthProviderType): string {
   if (provider === "google") return "Google";
   if (provider === "facebook") return "Facebook";
+  if (provider === "apple") return "Apple";
   return "phone";
 }
 
@@ -206,13 +212,57 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     [users, persistSessionMutation],
   );
 
+  const signInWithApple = useCallback(
+    async (appleUserId: string, email: string | null, fullName: string | null): Promise<AuthResult> => {
+      const normalized = normalizeIdentifier("apple", appleUserId);
+      if (!normalized) return { ok: false, message: "Apple did not return a valid account identifier." };
+      const latestUsers = users.length > 0 ? users : await loadUsers();
+      const existing = latestUsers.find((u) => u.provider === "apple" && u.identifier === normalized);
+      if (existing) {
+        setUsers(latestUsers);
+        setCurrentUser(existing);
+        await persistSessionMutation.mutateAsync(existing);
+        console.log("[auth] apple login success", { userId: existing.id });
+        return { ok: true };
+      }
+      const nextUser: AppUser = {
+        id: `u_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        name: (fullName ?? "").trim() || (email ?? "").trim() || "Apple User",
+        provider: "apple",
+        identifier: normalized,
+        createdAt: Date.now(),
+      };
+      const nextUsers = [nextUser, ...latestUsers];
+      setUsers(nextUsers);
+      setCurrentUser(nextUser);
+      await persistUsersMutation.mutateAsync(nextUsers);
+      await persistSessionMutation.mutateAsync(nextUser);
+      console.log("[auth] apple signup success", { userId: nextUser.id });
+      return { ok: true };
+    },
+    [users, persistUsersMutation, persistSessionMutation],
+  );
+
   const logout = useCallback(() => {
     setCurrentUser(null);
     persistSessionMutation.mutate(null);
   }, [persistSessionMutation]);
 
+  const deleteAccount = useCallback(async (): Promise<AuthResult> => {
+    const target = currentUser;
+    if (!target) return { ok: false, message: "No account is currently signed in." };
+    const latestUsers = users.length > 0 ? users : await loadUsers();
+    const remaining = latestUsers.filter((u) => u.id !== target.id);
+    setUsers(remaining);
+    setCurrentUser(null);
+    await persistUsersMutation.mutateAsync(remaining);
+    await persistSessionMutation.mutateAsync(null);
+    console.log("[auth] account deleted", { userId: target.id });
+    return { ok: true };
+  }, [currentUser, users, persistUsersMutation, persistSessionMutation]);
+
   return useMemo(
-    () => ({ users, currentUser, hydrated, isSignedIn: !!currentUser, signup, login, logout }),
-    [users, currentUser, hydrated, signup, login, logout],
+    () => ({ users, currentUser, hydrated, isSignedIn: !!currentUser, signup, login, signInWithApple, logout, deleteAccount }),
+    [users, currentUser, hydrated, signup, login, signInWithApple, logout, deleteAccount],
   );
 });
