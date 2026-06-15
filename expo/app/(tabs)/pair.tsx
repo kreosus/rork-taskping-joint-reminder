@@ -14,6 +14,7 @@ import {
   Pencil,
   Shield,
   Sparkles,
+  Trash2,
 } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
 import {
@@ -39,7 +40,7 @@ export default function PairScreen() {
   const { pair, generatePairCode, unpair, updatePair, persona, switchPersona } =
     useTasks();
   const { isPremium } = usePurchases();
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, deleteAccount } = useAuth();
   const [editingMe, setEditingMe] = useState<boolean>(false);
   const [editingPartner, setEditingPartner] = useState<boolean>(false);
   const [myName, setMyName] = useState<string>(pair.myName);
@@ -93,6 +94,33 @@ export default function PairScreen() {
     updatePair({ partnerName: partnerName.trim() || "Partner" });
     setEditingPartner(false);
   }, [partnerName, updatePair]);
+
+  const onDeleteAccount = useCallback(() => {
+    const doDelete = async () => {
+      const result = await deleteAccount();
+      if (Platform.OS !== "web") {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      }
+      if (result.ok) {
+        router.replace("/login");
+      } else if (result.message) {
+        if (Platform.OS === "web") console.log("[account] delete error", result.message);
+        else Alert.alert("Delete account", result.message);
+      }
+    };
+    if (Platform.OS === "web") {
+      void doDelete();
+      return;
+    }
+    Alert.alert(
+      "Delete account?",
+      "This permanently deletes your account and removes your profile and data from this device. This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete account", style: "destructive", onPress: () => void doDelete() },
+      ],
+    );
+  }, [deleteAccount]);
 
   const isPaired = !!pair.pairCode;
 
@@ -198,6 +226,12 @@ export default function PairScreen() {
             {currentUser ? <LogOut size={18} color={Colors.sub} strokeWidth={2.2} /> : <LogIn size={18} color={Colors.coral} strokeWidth={2.4} />}
           </Pressable>
         </View>
+        {currentUser ? (
+          <Pressable onPress={onDeleteAccount} style={styles.deleteRow} hitSlop={8} testID="delete-account">
+            <Trash2 size={16} color={Colors.coralDark} strokeWidth={2.3} />
+            <Text style={styles.deleteText}>Delete account</Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <View style={styles.section}>
@@ -553,6 +587,19 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.chipBg,
     alignItems: "center",
     justifyContent: "center",
+  },
+  deleteRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 10,
+    paddingVertical: 12,
+  },
+  deleteText: {
+    color: Colors.coralDark,
+    fontWeight: "800",
+    fontSize: 14,
   },
   switchLink: {
     color: Colors.coral,

@@ -3,11 +3,14 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { BellRing, Check, Crown, HeartHandshake, Infinity, Pill, RotateCcw, ShieldCheck, Zap } from "lucide-react-native";
 import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/colors";
 import { usePurchases } from "@/providers/purchases-provider";
+
+const TERMS_URL = "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/";
+const PRIVACY_URL = "https://docs.google.com/document/d/e/2PACX-1vRb5DW7gmfPAdUe_Dwmz4S3iBZn0Tcmzit9uKd-ue4fPurtHHst4TY_nagehvzm8ah8e3iL2q0RQ2Xh/pub";
 
 const HERO_ART = "https://r2-pub.rork.com/generated-images/a297da92-3f5c-4d4e-891d-6b58a8ad8023.png";
 const LOOP_ART = "https://r2-pub.rork.com/generated-images/ed5bbbf5-394d-4366-b0f1-48352fb718b4.png";
@@ -164,6 +167,24 @@ export default function PremiumScreen() {
           <RotateCcw size={15} color={Colors.sub} strokeWidth={2.4} />
           <Text style={styles.restoreText}>{isRestoring ? "Restoring..." : "Restore purchases"}</Text>
         </Pressable>
+
+        <View style={styles.legal}>
+          <Text style={styles.legalText}>
+            Nudge Premium is an auto-renewable subscription. Monthly is $4.99 per month; Yearly is $29.99 per year. Payment is
+            charged to your Apple ID at confirmation of purchase. The subscription renews automatically unless it is canceled at
+            least 24 hours before the end of the current period. Your account is charged for renewal within 24 hours prior to the
+            end of the current period. You can manage or cancel your subscription in your App Store account settings after purchase.
+          </Text>
+          <View style={styles.legalLinks}>
+            <Pressable onPress={() => Linking.openURL(TERMS_URL)} testID="terms-link">
+              <Text style={styles.legalLink}>Terms of Use (EULA)</Text>
+            </Pressable>
+            <Text style={styles.legalDot}>·</Text>
+            <Pressable onPress={() => Linking.openURL(PRIVACY_URL)} testID="privacy-link">
+              <Text style={styles.legalLink}>Privacy Policy</Text>
+            </Pressable>
+          </View>
+        </View>
       </ScrollView>
     </View>
   );
@@ -215,4 +236,9 @@ const styles = StyleSheet.create({
   ctaText: { color: "#fff", fontSize: 17, fontWeight: "900" },
   restore: { alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 7, padding: 10 },
   restoreText: { color: Colors.sub, fontSize: 13, fontWeight: "800" },
+  legal: { marginTop: 6, paddingHorizontal: 4, gap: 12 },
+  legalText: { color: "rgba(255,255,255,0.66)", fontSize: 11, lineHeight: 16, textAlign: "center" },
+  legalLinks: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
+  legalLink: { color: "rgba(255,255,255,0.92)", fontSize: 12, fontWeight: "800", textDecorationLine: "underline" },
+  legalDot: { color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: "800" },
 });

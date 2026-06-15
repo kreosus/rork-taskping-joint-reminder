@@ -1,8 +1,9 @@
+import * as AppleAuthentication from "expo-apple-authentication";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Facebook, Mail, Phone, ShieldCheck } from "lucide-react-native";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -27,13 +28,53 @@ const PROVIDERS: { key: AuthProviderType; label: string; helper: string }[] = [
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
-  const { login, signup, users, hydrated } = useAuth();
+  const { login, signup, signInWithApple, users, hydrated } = useAuth();
   const [mode, setMode] = useState<"signup" | "login">("signup");
   const [provider, setProvider] = useState<AuthProviderType>("google");
   const [name, setName] = useState<string>("");
   const [identifier, setIdentifier] = useState<string>("");
   const [message, setMessage] = useState<string>("");
   const [busy, setBusy] = useState<boolean>(false);
+  const [appleAvailable, setAppleAvailable] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (Platform.OS !== "ios") return;
+    AppleAuthentication.isAvailableAsync()
+      .then(setAppleAvailable)
+      .catch(() => setAppleAvailable(false));
+  }, []);
+
+  const onApple = useCallback(async () => {
+    if (busy) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      const fullName = credential.fullName
+        ? [credential.fullName.givenName, credential.fullName.familyName].filter(Boolean).join(" ")
+        : "";
+      const result = await signInWithApple(credential.user, credential.email ?? null, fullName || null);
+      if (result.ok) {
+        if (Platform.OS !== "web") await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.replace("/(tabs)");
+      } else {
+        setMessage(result.message ?? "Apple sign in could not be completed.");
+      }
+    } catch (e) {
+      const code = (e as { code?: string })?.code;
+      if (code !== "ERR_REQUEST_CANCELED") {
+        console.log("[auth] apple error", e);
+        setMessage("Apple sign in was not completed. Please try again.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }, [busy, signInWithApple]);
 
   const selected = useMemo(() => PROVIDERS.find((p) => p.key === provider) ?? PROVIDERS[0], [provider]);
   const placeholder = provider === "phone" ? "+1 555 123 4567" : "you@example.com";
@@ -76,6 +117,23 @@ export default function LoginScreen() {
           <Text style={styles.subtitle}>Sign up with Google, Facebook, or phone number. Users are stored in the local app database for this Expo build.</Text>
 
           <View style={styles.card}>
+            {appleAvailable ? (
+              <View style={styles.appleWrap}>
+                <AppleAuthentication.AppleAuthenticationButton
+                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                  cornerRadius={16}
+                  style={styles.appleButton}
+                  onPress={onApple}
+                />
+                <View style={styles.dividerRow}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerText}>or</Text>
+                  <View style={styles.dividerLine} />
+                </View>
+              </View>
+            ) : null}
+
             <View style={styles.segment}>
               <Pressable onPress={() => setMode("signup")} style={[styles.segmentBtn, mode === "signup" && styles.segmentActive]} testID="mode-signup">
                 <Text style={[styles.segmentText, mode === "signup" && styles.segmentTextActive]}>Sign up</Text>
@@ -140,6 +198,11 @@ const styles = StyleSheet.create({
   title: { color: "#FFFFFF", fontSize: 34, lineHeight: 39, fontWeight: "900", letterSpacing: -1.1, marginBottom: 10 },
   subtitle: { color: "rgba(255,255,255,0.78)", fontSize: 15, lineHeight: 22, marginBottom: 22 },
   card: { backgroundColor: "rgba(255,255,255,0.96)", borderRadius: 28, padding: 16, shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 6 },
+  appleWrap: { marginBottom: 6 },
+  appleButton: { height: 50, width: "100%" },
+  dividerRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 16, marginBottom: 4 },
+  dividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: Colors.line },
+  dividerText: { color: Colors.sub, fontSize: 12, fontWeight: "800" },
   segment: { flexDirection: "row", backgroundColor: Colors.chipBg, borderRadius: 18, padding: 4, marginBottom: 18 },
   segmentBtn: { flex: 1, alignItems: "center", paddingVertical: 11, borderRadius: 15 },
   segmentActive: { backgroundColor: Colors.surface },
