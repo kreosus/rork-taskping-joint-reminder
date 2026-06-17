@@ -17,25 +17,9 @@ import {
 } from "react-native";
 
 import { Colors } from "@/constants/colors";
+import { timeAgo, intervalLabel } from "@/lib/taskUtils";
 import { useTasks } from "@/providers/tasks-provider";
 import type { Task } from "@/types/task";
-
-function timeAgo(ts: number): string {
-  const diff = Date.now() - ts;
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
-}
-
-function intervalLabel(mins: number): string {
-  if (mins < 60) return `${mins}m`;
-  const h = Math.floor(mins / 60);
-  return `${h}h`;
-}
 
 interface Props {
   task: Task;
