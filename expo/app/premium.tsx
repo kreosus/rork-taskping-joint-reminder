@@ -7,7 +7,7 @@ import { ActivityIndicator, Alert, Image, Linking, Platform, Pressable, ScrollVi
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/colors";
-import { usePurchases } from "@/providers/purchases-provider";
+import { usePurchases, type PurchasePlan } from "@/providers/purchases-provider";
 
 const TERMS_URL = "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/";
 const PRIVACY_URL = "https://docs.google.com/document/d/e/2PACX-1vRb5DW7gmfPAdUe_Dwmz4S3iBZn0Tcmzit9uKd-ue4fPurtHHst4TY_nagehvzm8ah8e3iL2q0RQ2Xh/pub";
@@ -41,27 +41,33 @@ export default function PremiumScreen() {
     [plans, selectedId],
   );
 
-  const onPurchase = useCallback(async () => {
-    if (!selectedPlan) {
-      Alert.alert("Plans loading", "Subscription plans are still loading. Try again in a moment.");
-      return;
-    }
-    try {
-      const customerInfo = await purchasePlan(selectedPlan);
-      const unlocked = Boolean(customerInfo.entitlements.active.premium);
-      if (unlocked) {
-        if (Platform.OS !== "web") await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert("Premium unlocked", "You can now use unlimited partner nudges.", [
-          { text: "Nice", onPress: () => router.back() },
-        ]);
+  // Starts a real StoreKit purchase via RevenueCat. The entitlement is only ever
+  // granted by RevenueCat after a completed App Store transaction — nothing here
+  // unlocks Premium without one.
+  const buyPlan = useCallback(
+    async (plan: PurchasePlan | null) => {
+      if (!plan || !plan.package) {
+        Alert.alert("Plans loading", "Subscription plans are still loading. Try again in a moment.");
+        return;
       }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Purchase could not be completed.";
-      if (!message.toLowerCase().includes("cancel")) {
-        Alert.alert("Purchase failed", message);
+      try {
+        const customerInfo = await purchasePlan(plan);
+        const unlocked = Boolean(customerInfo.entitlements.active.premium);
+        if (unlocked) {
+          if (Platform.OS !== "web") await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          Alert.alert("Premium unlocked", "You can now use unlimited partner nudges.", [
+            { text: "Nice", onPress: () => router.back() },
+          ]);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Purchase could not be completed.";
+        if (!message.toLowerCase().includes("cancel")) {
+          Alert.alert("Purchase failed", message);
+        }
       }
-    }
-  }, [purchasePlan, selectedPlan]);
+    },
+    [purchasePlan],
+  );
 
   const onRestore = useCallback(async () => {
     try {
@@ -92,7 +98,7 @@ export default function PremiumScreen() {
         </View>
 
         <View style={styles.benefitsCard}>
-          <Image source={{ uri: LOOP_ART }} style={styles.loopArt} resizeMode="contain" pointerEvents="none" />
+          <Image source={{ uri: LOOP_ART }} style={styles.loopArt} resizeMode="contain" />
           <BenefitRow
             free="Up to 5 nudges"
             premium="Unlimited active nudges"
@@ -128,10 +134,15 @@ export default function PremiumScreen() {
         <View style={styles.plans}>
           {displayPlans.map((plan) => {
             const selected = plan.id === selectedId;
+            const realPlan = plans.find((p) => p.id === plan.id) ?? null;
             return (
               <Pressable
                 key={plan.id}
-                onPress={() => setSelectedId(plan.id)}
+                onPress={() => {
+                  setSelectedId(plan.id);
+                  buyPlan(realPlan);
+                }}
+                disabled={isPurchasing || isLoading || !isConfigured || !realPlan}
                 style={({ pressed }) => [styles.planCard, selected && styles.planSelected, pressed && { transform: [{ scale: 0.985 }] }]}
                 testID={`plan-${plan.id}`}
               >
@@ -155,12 +166,12 @@ export default function PremiumScreen() {
         {isPremium ? <Text style={styles.active}>Premium is active on this account.</Text> : null}
 
         <Pressable
-          onPress={onPurchase}
-          disabled={isPurchasing || isLoading || !isConfigured}
+          onPress={() => buyPlan(selectedPlan)}
+          disabled={isPurchasing || isLoading || !isConfigured || !selectedPlan}
           style={({ pressed }) => [styles.cta, (pressed || isPurchasing) && { opacity: 0.86 }]}
           testID="purchase-premium"
         >
-          {isPurchasing ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaText}>{isPremium ? "Manage Premium" : "Start Premium"}</Text>}
+          {isPurchasing ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaText}>{isPremium ? "Manage Premium" : "Subscribe"}</Text>}
         </Pressable>
 
         <Pressable onPress={onRestore} disabled={isRestoring || !isConfigured} style={styles.restore} testID="restore-purchases">
@@ -211,7 +222,7 @@ const styles = StyleSheet.create({
   heroArt: { width: "100%", height: 200 },
   crownWrap: { width: 64, height: 64, alignItems: "center", justifyContent: "center" },
   crownArt: { width: 64, height: 64 },
-  loopArt: { position: "absolute", top: -22, right: -14, width: 86, height: 86, opacity: 0.95 },
+  loopArt: { position: "absolute", top: -22, right: -14, width: 86, height: 86, opacity: 0.95, pointerEvents: "none" },
   eyebrow: { color: Colors.amber, fontWeight: "900", fontSize: 12, letterSpacing: 1.4, textTransform: "uppercase" },
   title: { color: "#fff", fontSize: 36, lineHeight: 39, fontWeight: "900", letterSpacing: -1.2 },
   subtitle: { color: "rgba(255,255,255,0.78)", fontSize: 15, lineHeight: 22, fontWeight: "600" },
