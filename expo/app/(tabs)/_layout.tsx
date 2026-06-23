@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Heart, Inbox, Pill, Send } from "lucide-react-native";
+import { Heart, Inbox, Pill, Send, Trophy } from "lucide-react-native";
 import React from "react";
 import { Platform, StyleSheet, View } from "react-native";
 
@@ -53,6 +53,15 @@ export default function TabLayout() {
           title: "Meds",
           tabBarIcon: ({ color, size }) => (
             <Pill color={color} size={size ?? 22} strokeWidth={2.2} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="rewards"
+        options={{
+          title: "Rewards",
+          tabBarIcon: ({ color, size }) => (
+            <Trophy color={color} size={size ?? 22} strokeWidth={2.2} />
           ),
         }}
       />

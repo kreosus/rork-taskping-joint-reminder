@@ -10,6 +10,7 @@ import {
   scheduleRepeatingReminder,
   sendImmediateNudge,
 } from "@/lib/notifications";
+import { useRewards } from "@/providers/rewards-provider";
 import type { Medication, MedicationColor, ReminderInterval, Task, TaskPriority } from "@/types/task";
 
 const TASKS_KEY = "nudge.tasks.v1";
@@ -78,6 +79,7 @@ async function loadPersona(): Promise<Persona> {
 
 export const [TasksProvider, useTasks] = createContextHook(() => {
   const qc = useQueryClient();
+  const { recordEvent } = useRewards();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
   const [pair, setPair] = useState<PairState>({ partnerName: "Partner", myName: "You", pairCode: null });
@@ -143,7 +145,8 @@ export const [TasksProvider, useTasks] = createContextHook(() => {
     if (!task) return;
     await cancelNotifications(task.notificationIds);
     persist((prev) => prev.map((t) => t.id === taskId ? { ...t, completedAt: Date.now(), notificationIds: [] } : t));
-  }, [tasks, persist]);
+    recordEvent({ type: "task", key: taskId });
+  }, [tasks, persist, recordEvent]);
 
   const uncompleteTask = useCallback(async (taskId: string) => {
     const task = tasks.find((t) => t.id === taskId);
@@ -179,7 +182,8 @@ export const [TasksProvider, useTasks] = createContextHook(() => {
       if (med.doseLogs.some((log) => log.dateKey === dateKey && log.time === time)) return med;
       return { ...med, doseLogs: [...med.doseLogs, { dateKey, time, takenAt: Date.now() }] };
     }));
-  }, [persistMedications]);
+    recordEvent({ type: "dose", key: `${medicationId}:${dateKey}:${time}` });
+  }, [persistMedications, recordEvent]);
 
   const deleteMedication = useCallback(async (medicationId: string) => {
     const medication = medications.find((med) => med.id === medicationId);
