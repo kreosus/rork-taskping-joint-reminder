@@ -6,8 +6,10 @@ import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import RewardCelebration from "@/components/RewardCelebration";
 import { TasksProvider } from "@/providers/tasks-provider";
 import { PurchasesProvider } from "@/providers/purchases-provider";
+import { RewardsProvider } from "@/providers/rewards-provider";
 import { AuthProvider } from "@/providers/auth-provider";
 import { Colors } from "@/constants/colors";
 
@@ -76,10 +78,13 @@ export default function RootLayout() {
         <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.bg }}>
           <AuthProvider>
             <PurchasesProvider>
-              <TasksProvider>
-                <StatusBar style="dark" />
-                <RootLayoutNav />
-              </TasksProvider>
+              <RewardsProvider>
+                <TasksProvider>
+                  <StatusBar style="dark" />
+                  <RootLayoutNav />
+                  <RewardCelebration />
+                </TasksProvider>
+              </RewardsProvider>
             </PurchasesProvider>
           </AuthProvider>
         </GestureHandlerRootView>
